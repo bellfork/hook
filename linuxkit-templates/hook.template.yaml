@@ -25,6 +25,7 @@ init:
   - linuxkit/ca-certificates:v1.0.0
   - linuxkit/firmware:24402a25359c7bc290f7fc3cd23b6b5f0feb32a5 # "Some" firmware from Linuxkit pkg; see https://github.com/linuxkit/linuxkit/blob/master/pkg/firmware/Dockerfile
   - "${HOOK_CONTAINER_EMBEDDED_IMAGE}"
+  - linuxkit/memlogd:v0.8
 
 onboot:
   - name: rngd1
@@ -159,6 +160,38 @@ services:
       major: 188
       minor: 1
       mode: "0666"
+
+  # https://github.com/linuxkit/linuxkit/blob/master/docs/logging.md#memlogd-an-in-memory-circular-buffer
+  - name: setup-log-forwarding
+    image: busybox:latest
+    command:
+      - "/bin/sh"
+      - "-c"
+      - |
+        CONSOLE_DEVS="/dev/console"
+        for opt in $(cat /proc/cmdline); do
+          case "$opt" in
+          console=*)
+            fulltty=${opt#console=}
+            tty=${fulltty%,*}
+            if [ -c "/dev/$tty" ]; then
+              CONSOLE_DEVS="$CONSOLE_DEVS /dev/$tty"
+            fi
+          esac
+        done
+
+        echo "Console devices: $CONSOLE_DEVS" | tee $CONSOLE_DEVS
+
+        tail -F /var/log/*.log 2>/dev/null | tee $CONSOLE_DEVS
+    binds.add:
+      - /var/log:/var/log
+      - /dev:/dev
+      - /proc:/proc
+    devices:
+      - path: all
+        type: b
+      - path: all
+        type: c
 
   - name: hook-docker
     image: "${HOOK_CONTAINER_DOCKER_IMAGE}"
