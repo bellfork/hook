@@ -42,6 +42,15 @@ onboot:
     image: linuxkit/modprobe:v1.0.0
     command: [ "modprobe", "cdc_ncm" ] # for usb ethernet dongles
 
+  - name: make-cni-writable
+    image: linuxkit/modprobe:v1.0.0
+    command: [ "/bin/sh", "-c", "mkdir -p /etc/cni/net.d && mount -t tmpfs tmpfs /etc/cni" ]
+    capabilities:
+      - all
+    binds:
+      - /etc:/etc
+    rootfsPropagation: shared
+
   - name: udev
     image: "${HOOK_CONTAINER_UDEV_IMAGE}"
     capabilities:
